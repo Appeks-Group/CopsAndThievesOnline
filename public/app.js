@@ -414,8 +414,11 @@ function spyFlow(patrol) {
   ]);
 }
 
-async function arrestFlow(patrol, cell) {
-  if (!confirm(`¿Arrestar en la casilla ${cell}? Es tu acción del turno.`)) return;
+function arrestFlow(patrol, cell) {
+  confirmSheet(`¿Arrestar en la casilla ${cell}?`, `La patrulla ${L(patrol)} usará su acción de este turno.`, 'Arrestar', () => doArrest(patrol, cell), 'danger');
+}
+
+async function doArrest(patrol, cell) {
   const r = await act({ type: 'arrest', patrol, cell });
   if (!r || !r.arrest) return;
   ui.arrestPatrol = null;
@@ -557,8 +560,8 @@ function bindPanels() {
   const on = (id, fn) => document.getElementById(id)?.addEventListener('click', fn);
   on('endMove', () => act({ type: 'end_move' }));
   on('drawLoot', () => act({ type: 'draw_loot' }));
-  on('forceTurn', () => { if (confirm('¿Cerrar el turno? Quien no haya terminado pierde su jugada.')) act({ type: 'force_resolve' }); });
-  on('endGame', () => { if (confirm('¿Terminar la partida ahora?')) act({ type: 'end_game' }); });
+  on('forceTurn', () => confirmSheet('¿Cerrar el turno?', 'Quien no haya terminado pierde su jugada.', 'Cerrar turno', () => act({ type: 'force_resolve' }), 'danger'));
+  on('endGame', () => confirmSheet('¿Terminar la partida ahora?', 'La partida termina para todos y no se puede deshacer.', 'Terminar partida', () => act({ type: 'end_game' }), 'danger'));
   on('hideScreen', () => { privacy = true; render(); window.scrollTo(0, 0); });
   $app.querySelectorAll('[data-patrol]').forEach((b) => b.addEventListener('click', () => { ui.selectedPatrol = Number(b.dataset.patrol); render(); }));
   $app.querySelectorAll('[data-act]').forEach((sel) => sel.addEventListener('change', () => {
@@ -569,11 +572,14 @@ function bindPanels() {
   }));
   $app.querySelectorAll('[data-thief]').forEach((b) => b.addEventListener('click', () => { ui.selectedThief = Number(b.dataset.thief); render(); }));
   $app.querySelectorAll('[data-take]').forEach((b) => b.addEventListener('click', () => {
-    if (confirm('Al tomar el botín se anuncia a todos qué casilla fue robada. ¿Tomarlo?')) act({ type: 'take_loot', thief: Number(b.dataset.take) });
+    confirmSheet('¿Tomar el botín?', 'Al tomarlo se anuncia a todos qué casilla fue robada (sin decir quién).', 'Tomar botín', () => act({ type: 'take_loot', thief: Number(b.dataset.take) }));
   }));
   $app.querySelectorAll('[data-pass]').forEach((b) => b.addEventListener('click', () => act({ type: 'pass', thief: Number(b.dataset.pass) })));
   $app.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(b.dataset.copy); toast('Enlace copiado.'); } catch { prompt('Copia este enlace:', b.dataset.copy); }
+    try { await navigator.clipboard.writeText(b.dataset.copy); toast('Enlace copiado.'); } catch {
+      openSheet('Copia este enlace', `<input type="text" readonly value="${esc(b.dataset.copy)}" style="width:100%" onfocus="this.select()">`, []);
+      $sheet.querySelector('input')?.focus();
+    }
   }));
   $app.querySelectorAll('[data-qr]').forEach((b) => b.addEventListener('click', () => {
     const box = b.closest('.join').querySelector('.qr');
@@ -593,6 +599,13 @@ function openSheet(title, body, options, { noClose = false } = {}) {
   if (c) c.onclick = closeSheet;
   $sheet.classList.remove('hidden');
   $backdrop.classList.remove('hidden');
+}
+// confirmación en el mismo modal que el resto de los mensajes (en lugar de confirm())
+function confirmSheet(title, message, okLabel, onOk, cls = '') {
+  openSheet(title, `<p>${esc(message)}</p>`, [
+    { label: okLabel, cls, run: () => { closeSheet(); onOk(); } },
+    { label: 'Cancelar', cls: 'secondary', run: closeSheet },
+  ], { noClose: true });
 }
 function closeSheet() { $sheet.classList.add('hidden'); $backdrop.classList.add('hidden'); }
 $backdrop.addEventListener('click', () => { if (!$sheet.dataset.locked) closeSheet(); });
