@@ -60,6 +60,8 @@ function playOne() {
       for (const th of g.thieves.filter((t) => !t.captured)) {
         if (g.phase !== PHASES.THIEVES_TURN) break;
         const opts = viewFor(g, T).me.moveOptions[th.id];
+        // los ladrones pueden moverse a cualquier casilla contigua, aunque tenga patrulla
+        assert.deepEqual(opts, [...adj[th.cell]].sort((a, b) => a - b));
         applyAction(g, T, { type: 'move', thief: th.id, cell: opts.length ? rnd(opts) : th.cell });
         const onLoot = g.loot.some((l) => l.cell === th.cell && !l.stolen);
         applyAction(g, T, { type: onLoot && Math.random() < 0.8 ? 'take_loot' : 'pass', thief: th.id });

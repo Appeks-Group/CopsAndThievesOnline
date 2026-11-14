@@ -433,7 +433,6 @@ function thievesOptions(cell, options) {
   if (p === 'turno_ladrones' && sel.step === 'mover') {
     const opts = me.moveOptions[sel.id] || [];
     if (opts.includes(cell)) options.push({ label: `Mover a ${sel.name} aquí`, run: () => act({ type: 'move', thief: sel.id, cell }) });
-    if (!opts.length && cell === sel.cell) options.push({ label: `${sel.name} se queda (está rodeado)`, run: () => act({ type: 'move', thief: sel.id, cell }) });
   }
 }
 
