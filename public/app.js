@@ -197,9 +197,6 @@ function groupHistory(list) {
     return { ...main, entries, at: Math.max(...entries.map((e) => e.at || 0)), missing: entries.every((e) => e.missing) };
   });
 }
-const rolesText = (grp) => grp.entries.length > 1
-  ? `${esc(grp.label)} <span class="muted">y ${grp.entries.length - 1} ${grp.entries.length === 2 ? 'papel' : 'papeles'} más</span>`
-  : esc(grp.label);
 
 function drawHistory() {
   const box = document.getElementById('history');
@@ -211,8 +208,9 @@ function drawHistory() {
     const status = r.missing ? '<span class="pill">no disponible</span>'
       : over ? `<span class="pill ${r.winner === 'policias' ? 'ok' : r.winner === 'ladrones' ? 'bad' : ''}">${resultText(r)}</span>`
       : `<span class="pill wait">${esc(PHASE_TEXT[r.phase] || 'En curso')}${r.turn ? ` · turno ${r.turn}/${r.maxTurns}` : ''}</span>`;
-    return `<li class="hist"><div><b>${rolesText(r)}</b> <span class="muted">· partida ${esc(r.g)}</span><div class="muted small">${dateText(r.at)}</div>${status}</div>
-      <div class="row">${!over && !r.missing ? `<a class="btn" href="?g=${esc(r.g)}&t=${esc(r.t)}">Continuar</a>` : ''}<button class="secondary" data-detail="${i}">Ver detalle</button></div></li>`;
+    // solo código, fecha y estatus; los papeles y enlaces están en el detalle
+    return `<li class="hist"><div><b>Partida ${esc(r.g)}</b><div class="muted small">${dateText(r.at)}</div>${status}</div>
+      <button class="secondary" data-detail="${i}">Ver detalle</button></li>`;
   };
   const active = list.map((r, i) => [r, i]).filter(([r]) => r.phase !== 'terminado');
   const done = list.map((r, i) => [r, i]).filter(([r]) => r.phase === 'terminado');
