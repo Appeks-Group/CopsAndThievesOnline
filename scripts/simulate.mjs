@@ -22,6 +22,17 @@ function playOne() {
   applyAction(g, g.hostToken, { type: 'draw_loot' });
   assert.equal(g.loot.length, g.config.loot);
 
+  // regla de inicio: nunca en un botín ni contiguo a uno; las casillas con patrulla sí se permiten
+  {
+    const lootCells = new Set(g.loot.map((l) => l.cell));
+    const forbidden = new Set(lootCells);
+    for (const c of lootCells) for (const n of adj[c]) forbidden.add(n);
+    const opts = viewFor(g, T).me.startOptions;
+    assert.ok(opts.every((c) => !forbidden.has(c)));
+    const patrolled = g.teams.flatMap((t) => t.patrols.map((p) => p.cell)).filter((c) => !forbidden.has(c));
+    assert.ok(patrolled.every((c) => opts.includes(c)));
+  }
+
   for (const th of g.thieves) {
     const v = viewFor(g, T);
     applyAction(g, T, { type: 'place_start', thief: th.id, cell: rnd(v.me.startOptions) });
@@ -57,7 +68,7 @@ function playOne() {
         if (r < 0.45) {
           const res = applyAction(g, t.token, { type: 'spy', patrol: p.id });
           assert.equal(typeof res.spy.result, 'boolean');
-        } else if (r < 0.9) applyAction(g, t.token, { type: 'arrest', patrol: p.id, cell: rnd([...adj[p.cell]]) });
+        } else if (r < 0.9) applyAction(g, t.token, { type: 'arrest', patrol: p.id, cell: rnd([p.cell, ...adj[p.cell]]) });
         else applyAction(g, t.token, { type: 'pass' });
       }
     }

@@ -262,7 +262,7 @@ function bannerHtml() {
     if (p === 'turno_ladrones') return b('', 'Juegan los ladrones', 'Prepárate para tu turno.');
     if (p === 'turno_policias') {
       if (me.step === 'mover') return b('warn', 'Paso 1 de 2: mover', 'Toca una patrulla y luego una casilla contigua marcada. Cada patrulla se mueve una vez.');
-      if (me.step === 'accion') return b('warn', 'Paso 2 de 2: acción', 'Toca la casilla de una patrulla para espiar, o una casilla contigua para arrestar.');
+      if (me.step === 'accion') return b('warn', 'Paso 2 de 2: acción', 'Toca la casilla de una patrulla para espiar o arrestar ahí, o una casilla contigua para arrestar.');
       return b('ok', 'Turno terminado', 'Esperando a los demás equipos.');
     }
   }
@@ -389,7 +389,7 @@ function teamOptions(cell, options) {
   if (me.step === 'accion') {
     if (own) options.push({ label: `Espiar aquí con la patrulla ${L(own.id)}`, run: () => spyFlow(own.id) });
     for (const pt of team.patrols) {
-      if (adj[pt.cell].has(cell)) options.push({ label: `Arrestar aquí con la patrulla ${L(pt.id)}`, cls: 'danger', run: () => arrestFlow(pt.id, cell) });
+      if (pt.cell === cell || adj[pt.cell].has(cell)) options.push({ label: `Arrestar aquí con la patrulla ${L(pt.id)}`, cls: 'danger', run: () => arrestFlow(pt.id, cell) });
     }
     options.push({ label: 'Pasar sin acción', cls: 'secondary', run: () => { if (confirm('¿Terminar el turno sin espiar ni arrestar?')) act({ type: 'pass' }); } });
   }
@@ -445,7 +445,7 @@ function teamControls() {
     }).join('')}</div><p class="muted">Selecciona una patrulla y toca una casilla marcada. No es obligatorio mover todas.</p>
       <button class="secondary block" id="endMove">Terminar de mover</button></div>`;
   }
-  return `<div class="card"><h2>Paso 2: acción</h2><p>Toca la casilla de una de tus patrullas para <b>espiar</b>, o una casilla contigua para <b>arrestar</b>.</p>
+  return `<div class="card"><h2>Paso 2: acción</h2><p>Toca la casilla de una de tus patrullas para <b>espiar</b> o <b>arrestar</b> ahí, o una casilla contigua para <b>arrestar</b>.</p>
     <div class="row">${team.patrols.map((p) => `<button class="secondary" data-spy="${p.id}">Espiar con ${L(p.id)} (casilla ${p.cell})</button>`).join('')}</div>
     <p></p><button class="secondary block" id="passTurn">Pasar sin acción</button></div>`;
 }

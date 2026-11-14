@@ -18,7 +18,7 @@ App web para jugar Policías y ladrones por equipos desde varios teléfonos. Un 
   - Patrullas primero, luego sorteo de botines y al final los ladrones.
   - Las patrullas no entran a casillas con botín.
   - Espiar dice si algún ladrón pasó alguna vez por esa casilla.
-  - Se arresta en una casilla vecina, y cada equipo hace una sola acción por turno.
+  - Se arresta en la casilla de la patrulla o en una casilla vecina, y cada equipo hace una sola acción por turno.
   - Ganan los ladrones con 5 botines o si sobreviven 15 turnos.
 - **Fichas:**
   - Cada arresto da +3 al equipo que arresta.
