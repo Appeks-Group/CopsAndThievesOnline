@@ -68,6 +68,10 @@ function playOne() {
         applyAction(g, T, { type: onLoot ? 'take_loot' : 'pass', thief: th.id });
       }
     } else if (g.phase === PHASES.POLICE_TURN) {
+      // registro de actividad: los equipos no ven eventos privados de los ladrones
+      const teamLog = viewFor(g, g.teams[0].token).log;
+      assert.ok(teamLog.every((l) => l.side !== 'thieves'), 'un equipo ve un evento privado de los ladrones');
+      if (g.turn > 1) assert.ok(teamLog.some((l) => l.kind === 'ladrones_listo'), 'falta el aviso de fin de turno de los ladrones');
       for (const t of g.teams) {
         if (g.phase !== PHASES.POLICE_TURN) break;
         for (const p of t.patrols) {

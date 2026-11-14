@@ -84,4 +84,11 @@ for (const th of h.thieves.filter((t) => !t.captured)) {
 h = await st(hostToken);
 assert.equal(h.turn, 2);
 assert.equal(h.phase, 'turno_policias');
+
+// registro de actividad de un equipo: acciones de los policías y el fin de turno de los ladrones, nada más de ellos
+const actLog = (await st(teams[1].token)).log;
+assert.ok(actLog.some((l) => l.kind === 'espionaje' && l.team === 1), 'falta el espionaje del equipo 1');
+assert.ok(actLog.some((l) => l.kind === 'ladrones_listo'), 'falta "Los ladrones terminaron su turno"');
+assert.ok(!actLog.some((l) => l.side === 'thieves'), 'un equipo ve eventos privados de los ladrones');
+assert.ok((await st(T)).log.some((l) => l.side === 'thieves'), 'los ladrones deben ver sus propios eventos');
 console.log('API OK: permisos, escrituras simultáneas, fases de ladrones y policías, espionaje privado.');

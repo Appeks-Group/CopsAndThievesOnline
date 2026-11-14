@@ -174,10 +174,9 @@ async function load(force = false) {
 function setState(data) {
   const prev = state;
   state = data;
-  if (prev && prev.log.length && state.log.length > prev.log.length) {
-    const last = state.log[state.log.length - 1];
-    if (['robo', 'arresto', 'fin'].includes(last.kind)) toast(last.text, 4000);
-  }
+  // aviso del último evento importante (la bitácora llega recortada, así que se compara el último)
+  const last = state.log[state.log.length - 1], prevLast = prev?.log[prev.log.length - 1];
+  if (prevLast && last && (last.at !== prevLast.at || last.text !== prevLast.text) && ['robo', 'arresto', 'fin'].includes(last.kind)) toast(last.text, 4000);
   // si la ficha seleccionada ya no puede actuar, se limpia la selección
   if (state.me.role === 'team' && !(state.me.moveOptions || {})[ui.selectedPatrol]) ui.selectedPatrol = null;
   if (state.me.role !== 'team' || state.phase !== 'turno_policias' || state.me.step !== 'accion' || !myTeam().patrols.some((p) => p.id === ui.aim?.patrol) || (state.me.actedThisTurn || []).includes(ui.aim?.patrol)) ui.aim = null;
@@ -229,9 +228,9 @@ function render() {
 
   html += `<div class="card"><h2>Marcador de fichas</h2>${state.scoresSecret ? '<p class="muted">Las fichas por botines robados se suman al final, para no delatar de qué equipo salió cada ladrón.</p>' : ''}<ul class="list">${[...state.teams].sort((a, b) => b.points - a.points).map((t) =>
     `<li><span><span class="swatch" style="background:${TEAM_COLORS[t.id - 1]}"></span>${esc(t.name)}</span><b>${t.points}</b></li>`).join('')}</ul></div>`;
-  html += `<div class="card"><h2>Bitácora</h2><div class="log">${[...state.log].reverse().map((l) => `<div>${l.turn ? `<span class="muted">T${l.turn} · </span>` : ''}${esc(l.text)}</div>`).join('')}</div></div>`;
-  html += `<p class="muted small">Partida ${esc(state.id)} · se actualiza sola cada 2 segundos.</p>`;
-  $app.innerHTML = html;
+  $app.classList.add('with-side');
+  $app.innerHTML = `<div class="layout"><div class="central">${html}</div>${activityPanel()}</div>
+    <p class="muted small">Partida ${esc(state.id)} · se actualiza sola cada 2 segundos.</p>`;
 
   $app.querySelectorAll('.cell').forEach((g) => g.addEventListener('click', () => onCell(Number(g.dataset.id))));
   document.getElementById('privacy')?.addEventListener('click', () => { privacy = false; render(); });
@@ -274,6 +273,18 @@ function bannerHtml() {
     if (p === 'turno_policias') return b('', 'Turno de los policías', 'Esperen a que terminen.');
   }
   return b('', PHASE_TEXT[p], '');
+}
+
+// ---------- registro de actividad (panel lateral) ----------
+
+// Lo que hicieron los policías y cuándo terminaron los ladrones (el servidor ya filtra lo privado).
+function activityPanel() {
+  const items = [...state.log].reverse().map((l) => {
+    const sw = l.team ? `<span class="swatch" style="background:${TEAM_COLORS[l.team - 1]}"></span>` : '';
+    return `<li class="act-${esc(l.side || 'game')}">${l.turn ? `<span class="act-turn">T${l.turn}</span>` : ''}<span>${sw}${esc(l.text)}</span></li>`;
+  }).join('');
+  return `<aside class="activity card" aria-label="Registro de actividad"><h2>Actividad</h2>
+    <ul class="activity-list">${items || '<li class="muted">Aún no hay actividad.</li>'}</ul></aside>`;
 }
 
 // ---------- mapa ----------
