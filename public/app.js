@@ -417,8 +417,13 @@ function spyFlow(patrol) {
 async function arrestFlow(patrol, cell) {
   if (!confirm(`¿Arrestar en la casilla ${cell}? Es tu acción del turno.`)) return;
   const r = await act({ type: 'arrest', patrol, cell });
-  if (r && r.arrest) ui.arrestPatrol = null;
-  if (r && r.arrest) toast(r.arrest.caught.length ? `¡Capturaste a ${r.arrest.caught.join(', ')}!` : 'No había nadie en esa casilla.', 4000);
+  if (!r || !r.arrest) return;
+  ui.arrestPatrol = null;
+  // el resultado se muestra siempre: la acción de la patrulla cuenta aunque no haya nadie
+  openSheet(`Arresto en la casilla ${r.arrest.cell}`, r.arrest.caught.length
+    ? `<div class="banner ok"><strong>¡Arrestaste a ${esc(r.arrest.caught.join(', '))}!</strong>La patrulla ${L(patrol)} ya hizo su acción de este turno.</div>`
+    : `<div class="banner danger"><strong>No arrestaste a nadie: no había ningún ladrón en esa casilla.</strong>La patrulla ${L(patrol)} ya hizo su acción de este turno.</div>`,
+  [{ label: 'Entendido', run: () => { closeSheet(); render(); } }], { noClose: true });
 }
 
 function thievesOptions(cell, options) {
@@ -455,7 +460,7 @@ function teamControls() {
       const done = acted.includes(p.id);
       const val = ui.arrestPatrol === p.id ? 'arrest' : '';
       return `<li><label for="act-${p.id}">Patrulla ${L(p.id)} · casilla ${p.cell}</label>${done
-        ? '<span class="pill ok">acción hecha</span>'
+        ? actionDone(p.id)
         : `<select id="act-${p.id}" data-act="${p.id}">
             <option value="" ${val ? '' : 'selected'}>Elegir acción…</option>
             <option value="spy">Espiar</option>
@@ -463,6 +468,19 @@ function teamControls() {
           </select>`}</li>`;
     }).join('')}</ul>
     ${arresting ? `<p class="muted">Toca en el mapa una casilla marcada para arrestar con la patrulla ${L(arresting.id)}.</p>` : ''}</div>`;
+}
+
+// resumen de lo que hizo una patrulla en este turno
+function actionDone(patrolId) {
+  const me = state.me;
+  const arrest = me.arrests.find((a) => a.turn === state.turn && a.patrol === patrolId);
+  if (arrest) {
+    const names = arrest.caught.map((id) => state.thieves.find((t) => t.id === id)?.name).filter(Boolean);
+    return names.length
+      ? `<span class="pill ok">acción hecha · arrestó a ${esc(names.join(', '))}</span>`
+      : `<span class="pill bad">acción hecha · arresto en ${arrest.cell}: no había nadie</span>`;
+  }
+  return '<span class="pill ok">acción hecha · espió</span>';
 }
 
 function teamHistory() {
