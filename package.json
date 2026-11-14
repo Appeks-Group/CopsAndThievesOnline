@@ -1,0 +1,16 @@
+{
+  "name": "policias-ladrones",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Juego de policías y ladrones por equipos, sincronizado en teléfonos.",
+  "scripts": {
+    "dev": "node scripts/dev-server.mjs",
+    "test": "node scripts/simulate.mjs && node scripts/api-test.mjs",
+    "netlify:dev": "netlify dev"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.1.0"
+  },
+  "engines": { "node": ">=18" }
+}
