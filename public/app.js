@@ -184,17 +184,34 @@ const ROLE_TEXT = { host: 'Jefe', thieves: 'Equipo de ladrones', team: 'Equipo d
 const resultText = (r) => r.winner === 'policias' ? 'Ganaron los policías' : r.winner === 'ladrones' ? 'Ganaron los ladrones' : 'Terminada por el jefe';
 
 // Las partidas en curso se pueden continuar; las terminadas solo aparecen en el historial.
+// Un registro por código de partida, aunque en este teléfono se haya entrado con varios papeles.
+// El principal es el del jefe (tiene todos los enlaces); si no, el más reciente.
+function groupHistory(list) {
+  const groups = new Map();
+  for (const r of list) {
+    if (!groups.has(r.g)) groups.set(r.g, []);
+    groups.get(r.g).push(r);
+  }
+  return [...groups.values()].map((entries) => {
+    const main = entries.find((e) => e.role === 'host') || entries[0];
+    return { ...main, entries, at: Math.max(...entries.map((e) => e.at || 0)), missing: entries.every((e) => e.missing) };
+  });
+}
+const rolesText = (grp) => grp.entries.length > 1
+  ? `${esc(grp.label)} <span class="muted">y ${grp.entries.length - 1} ${grp.entries.length === 2 ? 'papel' : 'papeles'} más</span>`
+  : esc(grp.label);
+
 function drawHistory() {
   const box = document.getElementById('history');
   if (!box) return;
-  const list = loadHistory();
+  const list = groupHistory(loadHistory());
   if (!list.length) { box.innerHTML = ''; return; }
   const row = (r, i) => {
     const over = r.phase === 'terminado';
     const status = r.missing ? '<span class="pill">no disponible</span>'
       : over ? `<span class="pill ${r.winner === 'policias' ? 'ok' : r.winner === 'ladrones' ? 'bad' : ''}">${resultText(r)}</span>`
       : `<span class="pill wait">${esc(PHASE_TEXT[r.phase] || 'En curso')}${r.turn ? ` · turno ${r.turn}/${r.maxTurns}` : ''}</span>`;
-    return `<li class="hist"><div><b>${esc(r.label)}</b> <span class="muted">· partida ${esc(r.g)}</span><div class="muted small">${dateText(r.at)}</div>${status}</div>
+    return `<li class="hist"><div><b>${rolesText(r)}</b> <span class="muted">· partida ${esc(r.g)}</span><div class="muted small">${dateText(r.at)}</div>${status}</div>
       <div class="row">${!over && !r.missing ? `<a class="btn" href="?g=${esc(r.g)}&t=${esc(r.t)}">Continuar</a>` : ''}<button class="secondary" data-detail="${i}">Ver detalle</button></div></li>`;
   };
   const active = list.map((r, i) => [r, i]).filter(([r]) => r.phase !== 'terminado');
@@ -231,15 +248,17 @@ async function showGameDetail(r) {
   const end = [...s.log].reverse().find((l) => l.kind === 'fin');
   const reason = end ? end.text.split('. ').slice(1).join('. ') || end.text : '';
   const roleText = r.role && ROLE_TEXT[r.role] !== r.label ? ` <span class="muted">(${ROLE_TEXT[r.role]})</span>` : '';
+  const mine = r.entries || [r];
+  // con el enlace del jefe se ven todos; si no, solo los enlaces con los que se entró en este teléfono
   const links = s.me.role === 'host'
     ? [['Jefe de juego', r.t], ['Equipo de ladrones', s.joins.thieves], ...s.joins.teams.map((t) => [t.name, t.token])]
-    : [[r.label, r.t]];
+    : mine.map((e) => [e.label, e.t]);
   const scores = [...s.teams].sort((a, b) => b.points - a.points);
   const body = `
     <div class="banner ${over ? (s.winner === 'policias' ? 'ok' : s.winner === 'ladrones' ? 'danger' : '') : 'warn'}">
       <strong>${over ? resultText(s) : esc(PHASE_TEXT[s.phase] || 'En curso')}</strong>${reason ? esc(reason) : `Turno ${s.turn}/${s.config.maxTurns}`}</div>
     <ul class="list">
-      <li><span>Tu papel en este teléfono</span><b>${esc(r.label)}${roleText}</b></li>
+      <li><span>${mine.length > 1 ? 'Tus papeles en este teléfono' : 'Tu papel en este teléfono'}</span><b>${mine.length > 1 ? esc(mine.map((e) => e.label).join(', ')) : `${esc(r.label)}${roleText}`}</b></li>
       <li><span>Turnos jugados</span><b>${s.turn}/${s.config.maxTurns}</b></li>
       <li><span>Botines robados</span><b>${s.stolenCount}/${s.config.lootToWin}</b></li>
       <li><span>Ladrones capturados</span><b>${s.thieves.filter((t) => t.captured).length}/${s.thieves.length}</b></li>
