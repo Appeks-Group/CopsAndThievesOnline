@@ -36,21 +36,13 @@ for (const th of tv0.thieves) {
   assert.equal(r.status, 200, r.data.error);
 }
 h = await st(hostToken);
-assert.equal(h.phase, 'turno_ladrones');
-
-// fases del ladrón: no puede tomar botín antes de mover
-assert.equal((await act(T, { type: 'pass', thief: 1 })).status, 400);
-for (const th of h.thieves) {
-  const v = await st(T);
-  await act(T, { type: 'move', thief: th.id, cell: v.me.moveOptions[th.id][0] });
-  assert.equal((await act(T, { type: 'move', thief: th.id, cell: v.me.moveOptions[th.id][0] })).status, 400, 'no debe moverse dos veces');
-  await act(T, { type: 'pass', thief: th.id });
-}
-h = await st(hostToken);
-assert.equal(h.phase, 'turno_policias');
+assert.equal(h.turn, 1);
+assert.equal(h.phase, 'turno_policias', 'los policías abren el primer turno');
 
 // policía: no puede espiar antes de terminar de mover
 assert.equal((await act(teams[0].token, { type: 'spy', patrol: 1 })).status, 400);
+// los ladrones no juegan durante el turno de los policías
+assert.equal((await act(T, { type: 'move', thief: 1, cell: 1 })).status, 400);
 await act(teams[0].token, { type: 'end_move' });
 const spy = await act(teams[0].token, { type: 'spy', patrol: 1 });
 assert.equal(typeof spy.data.result.spy.result, 'boolean', 'el que espía recibe el resultado');
@@ -63,6 +55,20 @@ assert.equal(same.unchanged, true);
 
 await act(hostToken, { type: 'force_resolve' });
 h = await st(hostToken);
-assert.equal(h.turn, 2);
+assert.equal(h.turn, 1);
 assert.equal(h.phase, 'turno_ladrones');
+
+// fases del ladrón: no puede tomar botín antes de mover
+assert.equal((await act(T, { type: 'pass', thief: 1 })).status, 400);
+for (const th of h.thieves.filter((t) => !t.captured)) {
+  const v = await st(T);
+  const opts = v.me.moveOptions[th.id];
+  const cell = opts.length ? opts[0] : v.thieves.find((x) => x.id === th.id).cell;
+  await act(T, { type: 'move', thief: th.id, cell });
+  assert.equal((await act(T, { type: 'move', thief: th.id, cell })).status, 400, 'no debe moverse dos veces');
+  await act(T, { type: 'pass', thief: th.id });
+}
+h = await st(hostToken);
+assert.equal(h.turn, 2);
+assert.equal(h.phase, 'turno_policias');
 console.log('API OK: permisos, escrituras simultáneas, fases de ladrones y policías, espionaje privado.');

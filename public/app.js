@@ -258,7 +258,7 @@ function bannerHtml() {
       return n < max ? b('warn', 'Coloca tus patrullas', `Toca cualquier casilla libre. Te faltan ${max - n}.`) : b('', 'Patrullas listas', 'Esperando a los demás equipos. Puedes tocar una patrulla tuya para quitarla.');
     }
     if (p === 'sortear_botines') return b('', 'El jefe está sorteando los botines', '');
-    if (p === 'colocar_ladrones') return b('', 'Los ladrones eligen dónde empiezan', 'Su casilla inicial aparecerá en el mapa.');
+    if (p === 'colocar_ladrones') return b('', 'Los ladrones eligen dónde empiezan', 'Su casilla inicial aparecerá en el mapa. Luego ustedes abren el primer turno.');
     if (p === 'turno_ladrones') return b('', 'Juegan los ladrones', 'Prepárate para tu turno.');
     if (p === 'turno_policias') {
       if (me.step === 'mover') return b('warn', 'Paso 1 de 2: mover', 'Toca una patrulla y luego una casilla contigua marcada. Cada patrulla se mueve una vez.');
@@ -268,7 +268,7 @@ function bannerHtml() {
   }
   if (me.role === 'thieves') {
     if (p === 'colocar_patrullas' || p === 'sortear_botines') return b('', 'Espera', 'Los policías se están colocando y luego se sortean los botines.');
-    if (p === 'colocar_ladrones') return b('warn', 'Elige dónde empieza cada ladrón', 'Las casillas marcadas son válidas. Todos verán la casilla inicial.');
+    if (p === 'colocar_ladrones') return b('warn', 'Elige dónde empieza cada ladrón', 'Las casillas marcadas son válidas. Todos verán la casilla inicial. Después juegan primero los policías.');
     if (p === 'turno_ladrones') return b('warn', 'Su turno', 'Por cada ladrón: primero mover, luego tomar botín o pasar.');
     if (p === 'turno_policias') return b('', 'Turno de los policías', 'Esperen a que terminen.');
   }

@@ -37,7 +37,7 @@ function playOne() {
     const v = viewFor(g, T);
     applyAction(g, T, { type: 'place_start', thief: th.id, cell: rnd(v.me.startOptions) });
   }
-  assert.equal(g.phase, PHASES.THIEVES_TURN);
+  assert.equal(g.phase, PHASES.POLICE_TURN, 'los policías abren el primer turno');
 
   // privacidad: un equipo no ve posiciones actuales, ni el ladrón oculto, ni resultados de espionaje
   const tv = viewFor(g, g.teams[0].token);
