@@ -16,6 +16,7 @@ App web para jugar Policías y ladrones por equipos desde varios teléfonos. Un 
   - **Ladrón oculto:** no tiene ficha ni pantalla. Juega dentro de su equipo de policías y solo el jefe lo registra.
 - **Aplica las reglas del reglamento:**
   - Patrullas primero, luego sorteo de botines y al final los ladrones.
+  - Las casillas iniciales de los ladrones son secretas: solo las ven el jefe y el equipo de ladrones.
   - En cuanto los ladrones eligen su casilla inicial empieza el turno 1. En cada turno juegan primero los policías y después los ladrones.
   - Las patrullas no entran a casillas con botín.
   - Espiar dice si algún ladrón pasó alguna vez por esa casilla.

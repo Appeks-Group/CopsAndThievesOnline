@@ -41,7 +41,8 @@ function playOne() {
 
   // privacidad: un equipo no ve posiciones actuales, ni el ladrón oculto, ni resultados de espionaje
   const tv = viewFor(g, g.teams[0].token);
-  assert.ok(tv.thieves.every((t) => t.cell === undefined && t.trail === undefined));
+  assert.ok(tv.thieves.every((t) => t.cell === undefined && t.trail === undefined && t.start === undefined), 'un equipo ve dónde están o empezaron los ladrones');
+  assert.ok(tv.log.filter((l) => l.kind === 'inicio').every((l) => l.cell === undefined && !/casilla \d/.test(l.text)), 'la bitácora delata la casilla inicial');
   assert.ok(!JSON.stringify(tv).includes('Caro'));
 
   let guard = 0;

@@ -258,7 +258,7 @@ function bannerHtml() {
       return n < max ? b('warn', 'Coloca tus patrullas', `Toca cualquier casilla libre. Te faltan ${max - n}.`) : b('', 'Patrullas listas', 'Esperando a los demás equipos. Puedes tocar una patrulla tuya para quitarla.');
     }
     if (p === 'sortear_botines') return b('', 'El jefe está sorteando los botines', '');
-    if (p === 'colocar_ladrones') return b('', 'Los ladrones eligen dónde empiezan', 'Su casilla inicial aparecerá en el mapa. Luego ustedes abren el primer turno.');
+    if (p === 'colocar_ladrones') return b('', 'Los ladrones eligen dónde empiezan', 'Sus casillas iniciales son secretas. Luego ustedes abren el primer turno.');
     if (p === 'turno_ladrones') return b('', 'Juegan los ladrones', 'Prepárate para tu turno.');
     if (p === 'turno_policias') {
       if (me.step === 'mover') return b('warn', 'Paso 1 de 2: mover', 'Toca una patrulla y luego una casilla contigua marcada. Cada patrulla se mueve una vez.');
@@ -268,7 +268,7 @@ function bannerHtml() {
   }
   if (me.role === 'thieves') {
     if (p === 'colocar_patrullas' || p === 'sortear_botines') return b('', 'Espera', 'Los policías se están colocando y luego se sortean los botines.');
-    if (p === 'colocar_ladrones') return b('warn', 'Elige dónde empieza cada ladrón', 'Las casillas marcadas son válidas. Todos verán la casilla inicial. Después juegan primero los policías.');
+    if (p === 'colocar_ladrones') return b('warn', 'Elige dónde empieza cada ladrón', 'Las casillas marcadas son válidas. Los policías no verán dónde empiezan. Después juegan primero los policías.');
     if (p === 'turno_ladrones') return b('warn', 'Su turno', 'Por cada ladrón: primero mover, luego tomar botín o pasar.');
     if (p === 'turno_policias') return b('', 'Turno de los policías', 'Esperen a que terminen.');
   }
@@ -315,12 +315,6 @@ function mapSvg() {
     if (loot && loot.stolen) parts.push(`<circle cx="${x}" cy="${y}" r="17" fill="#e4e1d8" stroke="#8a887f" stroke-dasharray="3 2"/>`);
     parts.push(`<text x="${x}" y="${y + 4}" text-anchor="middle">${c}</text></g>`);
   }
-  // casillas iniciales públicas de los ladrones (para quien no ve su posición)
-  if (!seesThieves) state.thieves.forEach((t, i) => {
-    if (!t.start) return;
-    const [x, y] = posOf(map, t.start);
-    parts.push(`<g pointer-events="none"><circle cx="${x}" cy="${y}" r="21" fill="none" stroke="${THIEF_COLORS[i % 6]}" stroke-width="2" stroke-dasharray="2 4"/><text x="${x}" y="${y - 23}" text-anchor="middle" style="font-size:9px;fill:${THIEF_COLORS[i % 6]}">inicio ${esc(t.name.slice(0, 8))}</text></g>`);
-  });
   for (const [cell, p] of patrolAt) {
     const [x, y] = posOf(map, cell);
     const mine = me.role === 'team' && p.team === me.teamId;
