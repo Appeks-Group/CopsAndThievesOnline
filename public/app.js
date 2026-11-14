@@ -41,11 +41,31 @@ async function api(path, opts = {}) {
   if (!res.ok) throw new Error(data.error || 'Error de conexión.');
   return data;
 }
-const linkFor = (token) => `${location.origin}${location.pathname}?g=${state.id}&t=${token}`;
+const linkTo = (gameId, token) => `${location.origin}${location.pathname}?g=${gameId}&t=${token}`;
+const linkFor = (token) => linkTo(state.id, token);
+
+// ---------- historial de partidas en este teléfono ----------
+// Cada partida que se abre aquí se guarda con un resumen (fase, ganador, turno) para el historial.
+const HISTORY_KEY = 'pyl_games';
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+}
+function saveHistory(list) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, 30))); } catch { /* sin almacenamiento: no hay historial */ }
+}
+const summaryOf = (s) => ({ phase: s.phase, winner: s.winner, turn: s.turn, maxTurns: s.config.maxTurns });
 function rememberGame(label) {
-  const list = JSON.parse(localStorage.getItem('pyl_games') || '[]').filter((x) => !(x.g === session.gameId && x.t === session.token));
-  list.unshift({ g: session.gameId, t: session.token, label, at: Date.now() });
-  localStorage.setItem('pyl_games', JSON.stringify(list.slice(0, 8)));
+  const list = loadHistory();
+  const old = list.find((x) => x.g === session.gameId && x.t === session.token);
+  const rest = list.filter((x) => x !== old);
+  rest.unshift({ g: session.gameId, t: session.token, label, role: state.me.role, created: old?.created || Date.now(), at: Date.now(), ...summaryOf(state) });
+  saveHistory(rest);
+}
+async function copyLink(url) {
+  try { await navigator.clipboard.writeText(url); toast('Enlace copiado.'); } catch {
+    openSheet('Copia este enlace', `<input type="text" readonly value="${esc(url)}" style="width:100%" onfocus="this.select()">`, []);
+    $sheet.querySelector('input')?.focus();
+  }
 }
 function adjacencyOf(map) {
   const adj = {};
@@ -61,7 +81,6 @@ const myTeam = () => state.teams.find((t) => t.id === state.me.teamId);
 
 function renderHome() {
   $who.textContent = '';
-  const recent = JSON.parse(localStorage.getItem('pyl_games') || '[]');
   $app.innerHTML = `
     <h1>Policías y ladrones</h1>
     <div class="card">
@@ -69,8 +88,7 @@ function renderHome() {
       <p class="muted">Escanea el código QR que te muestra el jefe o pega aquí tu enlace.</p>
       <div class="row"><input id="joinLink" placeholder="Pega tu enlace" /><button id="joinBtn">Entrar</button></div>
     </div>
-    ${recent.length ? `<div class="card"><h2>Partidas recientes en este teléfono</h2><ul class="list">${recent.map((r) =>
-      `<li><span>${esc(r.label)} <span class="muted">· ${esc(r.g)}</span></span><a class="btn secondary" href="?g=${esc(r.g)}&t=${esc(r.t)}">Abrir</a></li>`).join('')}</ul></div>` : ''}
+    <div id="history"></div>
     <div class="card">
       <h2>Crear partida (jefe)</h2>
       <div class="grid2">
@@ -98,6 +116,9 @@ function renderHome() {
       <p></p>
       <button class="block" id="createBtn">Crear partida</button>
     </div>`;
+
+  drawHistory();
+  refreshHistory();
 
   const teamsInput = document.getElementById('cTeams');
   const namesBox = document.getElementById('teamNames');
@@ -156,6 +177,83 @@ function renderHome() {
       location.search = `?g=${r.gameId}&t=${r.hostToken}`;
     } catch (err) { toast(err.message); e.target.disabled = false; }
   };
+}
+
+const dateText = (ms) => (ms ? new Date(ms).toLocaleString('es', { dateStyle: 'medium', timeStyle: 'short' }) : '');
+const ROLE_TEXT = { host: 'Jefe', thieves: 'Equipo de ladrones', team: 'Equipo de policías' };
+const resultText = (r) => r.winner === 'policias' ? 'Ganaron los policías' : r.winner === 'ladrones' ? 'Ganaron los ladrones' : 'Terminada por el jefe';
+
+// Las partidas en curso se pueden continuar; las terminadas solo aparecen en el historial.
+function drawHistory() {
+  const box = document.getElementById('history');
+  if (!box) return;
+  const list = loadHistory();
+  if (!list.length) { box.innerHTML = ''; return; }
+  const row = (r, i) => {
+    const over = r.phase === 'terminado';
+    const status = r.missing ? '<span class="pill">no disponible</span>'
+      : over ? `<span class="pill ${r.winner === 'policias' ? 'ok' : r.winner === 'ladrones' ? 'bad' : ''}">${resultText(r)}</span>`
+      : `<span class="pill wait">${esc(PHASE_TEXT[r.phase] || 'En curso')}${r.turn ? ` · turno ${r.turn}/${r.maxTurns}` : ''}</span>`;
+    return `<li class="hist"><div><b>${esc(r.label)}</b> <span class="muted">· partida ${esc(r.g)}</span><div class="muted small">${dateText(r.at)}</div>${status}</div>
+      <div class="row">${!over && !r.missing ? `<a class="btn" href="?g=${esc(r.g)}&t=${esc(r.t)}">Continuar</a>` : ''}<button class="secondary" data-detail="${i}">Ver detalle</button></div></li>`;
+  };
+  const active = list.map((r, i) => [r, i]).filter(([r]) => r.phase !== 'terminado');
+  const done = list.map((r, i) => [r, i]).filter(([r]) => r.phase === 'terminado');
+  box.innerHTML = `<div class="card"><h2>Historial de partidas</h2>
+    <h3 class="sub">En curso</h3>${active.length ? `<ul class="list">${active.map(([r, i]) => row(r, i)).join('')}</ul>` : '<p class="muted">No tienes partidas en curso en este teléfono.</p>'}
+    <h3 class="sub">Terminadas</h3>${done.length ? `<ul class="list">${done.map(([r, i]) => row(r, i)).join('')}</ul>` : '<p class="muted">Aún no hay partidas terminadas.</p>'}</div>`;
+  box.querySelectorAll('[data-detail]').forEach((b) => b.addEventListener('click', () => showGameDetail(list[Number(b.dataset.detail)])));
+}
+
+// Actualiza el resumen de cada partida guardada (una pudo terminar mientras este teléfono estaba cerrado).
+async function refreshHistory() {
+  const list = loadHistory();
+  if (!list.length) return;
+  await Promise.all(list.map(async (r) => {
+    try {
+      const s = await api(`games/${r.g}/state?token=${encodeURIComponent(r.t)}`);
+      Object.assign(r, summaryOf(s), { missing: false });
+    } catch { r.missing = true; }
+  }));
+  // solo se guarda si el historial no cambió mientras tanto
+  if (JSON.stringify(loadHistory().map((x) => x.g + x.t)) === JSON.stringify(list.map((x) => x.g + x.t))) saveHistory(list);
+  drawHistory();
+}
+
+async function showGameDetail(r) {
+  openSheet(`Partida ${r.g}`, '<p class="muted">Cargando…</p>', []);
+  let s;
+  try { s = await api(`games/${r.g}/state?token=${encodeURIComponent(r.t)}`); } catch (err) {
+    openSheet(`Partida ${r.g}`, `<div class="banner danger"><strong>No pude abrir esta partida</strong>${esc(err.message)}</div>`, []);
+    return;
+  }
+  const over = s.phase === 'terminado';
+  const end = [...s.log].reverse().find((l) => l.kind === 'fin');
+  const reason = end ? end.text.split('. ').slice(1).join('. ') || end.text : '';
+  const roleText = r.role && ROLE_TEXT[r.role] !== r.label ? ` <span class="muted">(${ROLE_TEXT[r.role]})</span>` : '';
+  const links = s.me.role === 'host'
+    ? [['Jefe de juego', r.t], ['Equipo de ladrones', s.joins.thieves], ...s.joins.teams.map((t) => [t.name, t.token])]
+    : [[r.label, r.t]];
+  const scores = [...s.teams].sort((a, b) => b.points - a.points);
+  const body = `
+    <div class="banner ${over ? (s.winner === 'policias' ? 'ok' : s.winner === 'ladrones' ? 'danger' : '') : 'warn'}">
+      <strong>${over ? resultText(s) : esc(PHASE_TEXT[s.phase] || 'En curso')}</strong>${reason ? esc(reason) : `Turno ${s.turn}/${s.config.maxTurns}`}</div>
+    <ul class="list">
+      <li><span>Tu papel en este teléfono</span><b>${esc(r.label)}${roleText}</b></li>
+      <li><span>Turnos jugados</span><b>${s.turn}/${s.config.maxTurns}</b></li>
+      <li><span>Botines robados</span><b>${s.stolenCount}/${s.config.lootToWin}</b></li>
+      <li><span>Ladrones capturados</span><b>${s.thieves.filter((t) => t.captured).length}/${s.thieves.length}</b></li>
+      <li><span>Última vez abierta aquí</span><b>${dateText(r.at)}</b></li>
+    </ul>
+    <h3 class="sub">Marcador${s.scoresSecret ? ' <span class="muted small">(sin fichas secretas de botines)</span>' : ''}</h3>
+    <ul class="list">${scores.map((t) => `<li><span><span class="swatch" style="background:${TEAM_COLORS[t.id - 1]}"></span>${esc(t.name)}</span><b>${t.points}</b></li>`).join('')}</ul>
+    <h3 class="sub">Enlaces</h3>
+    <ul class="list">${links.map(([label, token]) => {
+      const url = linkTo(r.g, token);
+      return `<li><span>${esc(label)}</span><span class="row"><button class="secondary" data-copylink="${esc(url)}">Copiar</button><a class="btn secondary" href="${esc(url)}">Abrir</a></span></li>`;
+    }).join('')}</ul>`;
+  openSheet(`Partida ${r.g}`, body, []);
+  $sheet.querySelectorAll('[data-copylink]').forEach((b) => b.addEventListener('click', () => copyLink(b.dataset.copylink)));
 }
 
 // ---------- sincronización ----------
@@ -590,12 +688,7 @@ function bindPanels() {
     confirmSheet('¿Tomar el botín?', 'Al tomarlo se anuncia a todos qué casilla fue robada (sin decir quién).', 'Tomar botín', () => act({ type: 'take_loot', thief: Number(b.dataset.take) }));
   }));
   $app.querySelectorAll('[data-pass]').forEach((b) => b.addEventListener('click', () => act({ type: 'pass', thief: Number(b.dataset.pass) })));
-  $app.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(b.dataset.copy); toast('Enlace copiado.'); } catch {
-      openSheet('Copia este enlace', `<input type="text" readonly value="${esc(b.dataset.copy)}" style="width:100%" onfocus="this.select()">`, []);
-      $sheet.querySelector('input')?.focus();
-    }
-  }));
+  $app.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', () => copyLink(b.dataset.copy)));
   $app.querySelectorAll('[data-qr]').forEach((b) => b.addEventListener('click', () => {
     const box = b.closest('.join').querySelector('.qr');
     if (box.classList.toggle('hidden')) return;

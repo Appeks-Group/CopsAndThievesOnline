@@ -89,3 +89,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 .joins .qr { background: #fff; padding: 8px; display: inline-block; margin-top: 8px; }
 .thiefrow { display: grid; grid-template-columns: 1fr 120px 40px; gap: 6px; align-items: end; margin-bottom: 6px; }
 .small { font-size: 13px; }
+h3.sub { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 14px 0 4px; }
+.list li.hist { align-items: flex-start; flex-wrap: wrap; }
+.list li.hist .pill { display: inline-block; margin-top: 4px; }
+.sheet { max-height: 88vh; overflow: auto; }
