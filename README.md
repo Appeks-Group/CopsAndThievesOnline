@@ -10,7 +10,7 @@ App web para jugar Policías y ladrones por equipos desde varios teléfonos. Un 
   - **Jefe:** ve todo, incluidos el ladrón oculto y los resultados de espionaje. Sortea los botines, comparte enlaces (copiar, WhatsApp o QR), cierra turnos y termina la partida.
   - **Equipo de policías** (un teléfono por equipo), en dos pasos:
     1. **Mover:** cada patrulla avanza 1 casilla contigua.
-    2. **Acción:** espiar, arrestar o pasar.
+    2. **Acción:** espiar o arrestar (es obligatorio hacer una de las dos).
     - Antes de espiar sale la alerta *"Asegúrate que nadie más de tu equipo esté cerca"*. El resultado se ve una sola vez y no queda guardado en pantalla.
   - **Equipo de ladrones** (un solo teléfono): por cada ladrón, **mover** 1 casilla contigua y luego **tomar botín** o **pasar**.
   - **Ladrón oculto:** no tiene ficha ni pantalla. Juega dentro de su equipo de policías y solo el jefe lo registra.
@@ -18,7 +18,7 @@ App web para jugar Policías y ladrones por equipos desde varios teléfonos. Un 
   - Patrullas primero, luego sorteo de botines y al final los ladrones.
   - Las casillas iniciales de los ladrones son secretas: solo las ven el jefe y el equipo de ladrones.
   - En cuanto los ladrones eligen su casilla inicial empieza el turno 1. En cada turno juegan primero los policías y después los ladrones.
-  - Las patrullas no entran a casillas con botín.
+  - Las patrullas pueden entrar a casillas con botín o donde haya un ladrón.
   - Espiar dice si algún ladrón pasó alguna vez por esa casilla.
   - Se arresta en la casilla de la patrulla o en una casilla vecina, y cada equipo hace una sola acción por turno.
   - Ganan los ladrones con 5 botines o si sobreviven 15 turnos.

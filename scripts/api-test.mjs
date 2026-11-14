@@ -44,6 +44,8 @@ assert.equal((await act(teams[0].token, { type: 'spy', patrol: 1 })).status, 400
 // los ladrones no juegan durante el turno de los policías
 assert.equal((await act(T, { type: 'move', thief: 1, cell: 1 })).status, 400);
 await act(teams[0].token, { type: 'end_move' });
+// los policías no pueden pasar: deben espiar o arrestar
+assert.equal((await act(teams[0].token, { type: 'pass' })).status, 400);
 const spy = await act(teams[0].token, { type: 'spy', patrol: 1 });
 assert.equal(typeof spy.data.result.spy.result, 'boolean', 'el que espía recibe el resultado');
 const teamView = await st(teams[0].token);

@@ -39,6 +39,15 @@ function playOne() {
   }
   assert.equal(g.phase, PHASES.POLICE_TURN, 'los policías abren el primer turno');
 
+  // las patrullas pueden moverse a casillas con botín o con ladrón (solo no a otra patrulla)
+  {
+    const occupied = new Set(g.teams.flatMap((t) => t.patrols.map((p) => p.cell)));
+    for (const t of g.teams) {
+      const opts = viewFor(g, t.token).me.moveOptions;
+      for (const p of t.patrols) assert.deepEqual(opts[p.id], [...adj[p.cell]].filter((c) => !occupied.has(c)).sort((a, b) => a - b));
+    }
+  }
+
   // privacidad: un equipo no ve posiciones actuales, ni el ladrón oculto, ni resultados de espionaje
   const tv = viewFor(g, g.teams[0].token);
   assert.ok(tv.thieves.every((t) => t.cell === undefined && t.trail === undefined && t.start === undefined), 'un equipo ve dónde están o empezaron los ladrones');
@@ -69,16 +78,13 @@ function playOne() {
         if (r < 0.45) {
           const res = applyAction(g, t.token, { type: 'spy', patrol: p.id });
           assert.equal(typeof res.spy.result, 'boolean');
-        } else if (r < 0.9) applyAction(g, t.token, { type: 'arrest', patrol: p.id, cell: rnd([p.cell, ...adj[p.cell]]) });
-        else applyAction(g, t.token, { type: 'pass' });
+        } else applyAction(g, t.token, { type: 'arrest', patrol: p.id, cell: rnd([p.cell, ...adj[p.cell]]) });
       }
     }
   }
   assert.equal(g.phase, PHASES.OVER, 'la partida no terminó');
   const cells = g.teams.flatMap((t) => t.patrols.map((p) => p.cell));
   assert.equal(new Set(cells).size, cells.length, 'dos patrullas en la misma casilla');
-  const lootCells = new Set(g.loot.filter((l) => !l.stolen).map((l) => l.cell));
-  assert.ok(cells.every((c) => !lootCells.has(c)), 'patrulla sobre botín');
   return { winner: g.winner, turns: g.turn, stolen: g.loot.filter((l) => l.stolen).length, caught: g.thieves.filter((t) => t.captured).length };
 }
 

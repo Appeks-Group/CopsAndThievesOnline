@@ -344,7 +344,7 @@ function onCell(cell) {
 function cellInfo(cell) {
   const lines = [];
   const loot = state.loot.find((l) => l.cell === cell);
-  if (loot) lines.push(loot.stolen ? `Botín robado en el turno ${loot.stolenTurn}.` : 'Aquí hay un botín. Las patrullas no pueden entrar.');
+  if (loot) lines.push(loot.stolen ? `Botín robado en el turno ${loot.stolenTurn}.` : 'Aquí hay un botín.');
   for (const t of state.teams) for (const p of t.patrols) if (p.cell === cell) lines.push(`Patrulla ${L(p.id)} de ${esc(t.name)}.`);
   state.thieves.forEach((t) => {
     if (t.start === cell) lines.push(`Aquí empezó ${esc(t.name)}.`);
@@ -385,7 +385,6 @@ function teamOptions(cell, options) {
     for (const pt of team.patrols) {
       if (pt.cell === cell || adj[pt.cell].has(cell)) options.push({ label: `Arrestar aquí con la patrulla ${L(pt.id)}`, cls: 'danger', run: () => arrestFlow(pt.id, cell) });
     }
-    options.push({ label: 'Pasar sin acción', cls: 'secondary', run: () => { if (confirm('¿Terminar el turno sin espiar ni arrestar?')) act({ type: 'pass' }); } });
   }
 }
 
@@ -439,9 +438,9 @@ function teamControls() {
     }).join('')}</div><p class="muted">Selecciona una patrulla y toca una casilla marcada. No es obligatorio mover todas.</p>
       <button class="secondary block" id="endMove">Terminar de mover</button></div>`;
   }
-  return `<div class="card"><h2>Paso 2: acción</h2><p>Toca la casilla de una de tus patrullas para <b>espiar</b> o <b>arrestar</b> ahí, o una casilla contigua para <b>arrestar</b>.</p>
+  return `<div class="card"><h2>Paso 2: acción</h2><p>Toca la casilla de una de tus patrullas para <b>espiar</b> o <b>arrestar</b> ahí, o una casilla contigua para <b>arrestar</b>. Tienes que elegir una de las dos.</p>
     <div class="row">${team.patrols.map((p) => `<button class="secondary" data-spy="${p.id}">Espiar con ${L(p.id)} (casilla ${p.cell})</button>`).join('')}</div>
-    <p></p><button class="secondary block" id="passTurn">Pasar sin acción</button></div>`;
+</div>`;
 }
 
 function teamHistory() {
@@ -517,7 +516,6 @@ function joinBlock(label, token) {
 function bindPanels() {
   const on = (id, fn) => document.getElementById(id)?.addEventListener('click', fn);
   on('endMove', () => act({ type: 'end_move' }));
-  on('passTurn', () => { if (confirm('¿Terminar el turno sin espiar ni arrestar?')) act({ type: 'pass' }); });
   on('drawLoot', () => act({ type: 'draw_loot' }));
   on('forceTurn', () => { if (confirm('¿Cerrar el turno? Quien no haya terminado pierde su jugada.')) act({ type: 'force_resolve' }); });
   on('endGame', () => { if (confirm('¿Terminar la partida ahora?')) act({ type: 'end_game' }); });
