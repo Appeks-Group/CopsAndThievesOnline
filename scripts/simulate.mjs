@@ -81,7 +81,7 @@ function playOne() {
           if (g.phase !== PHASES.POLICE_TURN) break;
           assert.equal(t.step, 'accion', 'el equipo terminó antes de que actuaran todas sus patrullas');
           if (Math.random() < 0.45) {
-            const res = applyAction(g, t.token, { type: 'spy', patrol: p.id });
+            const res = applyAction(g, t.token, { type: 'spy', patrol: p.id, cell: rnd([p.cell, ...adj[p.cell]]) });
             assert.equal(typeof res.spy.result, 'boolean');
           } else applyAction(g, t.token, { type: 'arrest', patrol: p.id, cell: rnd([p.cell, ...adj[p.cell]]) });
           if (g.phase === PHASES.POLICE_TURN && t.step === 'accion') {

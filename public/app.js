@@ -22,7 +22,7 @@ const params = new URLSearchParams(location.search);
 const session = { gameId: params.get('g'), token: params.get('t') };
 let state = null;
 let pollTimer = null;
-let ui = { selectedPatrol: null, selectedThief: null, arrestPatrol: null };
+let ui = { selectedPatrol: null, selectedThief: null, aim: null }; // aim: { patrol, kind: 'spy' | 'arrest' }
 let privacy = false;
 
 // ---------- utilidades ----------
@@ -180,7 +180,7 @@ function setState(data) {
   }
   // si la ficha seleccionada ya no puede actuar, se limpia la selección
   if (state.me.role === 'team' && !(state.me.moveOptions || {})[ui.selectedPatrol]) ui.selectedPatrol = null;
-  if (state.me.role !== 'team' || state.phase !== 'turno_policias' || state.me.step !== 'accion' || !myTeam().patrols.some((p) => p.id === ui.arrestPatrol) || (state.me.actedThisTurn || []).includes(ui.arrestPatrol)) ui.arrestPatrol = null;
+  if (state.me.role !== 'team' || state.phase !== 'turno_policias' || state.me.step !== 'accion' || !myTeam().patrols.some((p) => p.id === ui.aim?.patrol) || (state.me.actedThisTurn || []).includes(ui.aim?.patrol)) ui.aim = null;
   if (state.me.role === 'thieves') {
     const active = state.thieves.filter((t) => !t.captured && (state.phase === 'colocar_ladrones' ? !t.placed : ['mover', 'accion'].includes(t.step)));
     if (!active.some((t) => t.id === ui.selectedThief)) ui.selectedThief = active[0]?.id ?? null;
@@ -292,7 +292,7 @@ function mapSvg() {
       for (let c = 1; c <= map.size; c++) if (!patrolAt.has(c)) targets.add(c);
     }
     if (state.phase === 'turno_policias' && me.step === 'mover' && ui.selectedPatrol) (me.moveOptions[ui.selectedPatrol] || []).forEach((c) => targets.add(c));
-    if (state.phase === 'turno_policias' && me.step === 'accion' && ui.arrestPatrol) arrestCells(ui.arrestPatrol).forEach((c) => targets.add(c));
+    if (state.phase === 'turno_policias' && me.step === 'accion' && ui.aim) reachCells(ui.aim.patrol).forEach((c) => targets.add(c));
   }
   if (me.role === 'thieves') {
     if (state.phase === 'colocar_ladrones' && ui.selectedThief) me.startOptions.forEach((c) => targets.add(c));
@@ -336,14 +336,16 @@ function mapSvg() {
 
 // ---------- toque en una casilla ----------
 
-// casillas donde una patrulla puede arrestar: la suya y las conectadas
-function arrestCells(patrolId) {
+// casillas donde una patrulla puede espiar o arrestar: la suya y las conectadas
+function reachCells(patrolId) {
   const pt = myTeam().patrols.find((p) => p.id === patrolId);
   return pt ? [pt.cell, ...adjacencyOf(state.map)[pt.cell]] : [];
 }
 
 function onCell(cell) {
-  if (state.me.role === 'team' && state.me.step === 'accion' && ui.arrestPatrol && arrestCells(ui.arrestPatrol).includes(cell)) return arrestFlow(ui.arrestPatrol, cell);
+  if (state.me.role === 'team' && state.me.step === 'accion' && ui.aim && reachCells(ui.aim.patrol).includes(cell)) {
+    return ui.aim.kind === 'spy' ? spyFlow(ui.aim.patrol, cell) : arrestFlow(ui.aim.patrol, cell);
+  }
   const options = [];
   if (state.me.role === 'team') teamOptions(cell, options);
   if (state.me.role === 'thieves') thievesOptions(cell, options);
@@ -391,20 +393,22 @@ function teamOptions(cell, options) {
   }
   if (me.step === 'accion') {
     const acted = me.actedThisTurn || [];
-    if (own && !acted.includes(own.id)) options.push({ label: `Espiar aquí con la patrulla ${L(own.id)}`, run: () => spyFlow(own.id) });
     for (const pt of team.patrols.filter((x) => !acted.includes(x.id))) {
-      if (pt.cell === cell || adj[pt.cell].has(cell)) options.push({ label: `Arrestar aquí con la patrulla ${L(pt.id)}`, cls: 'danger', run: () => arrestFlow(pt.id, cell) });
+      if (pt.cell !== cell && !adj[pt.cell].has(cell)) continue;
+      options.push({ label: `Espiar aquí con la patrulla ${L(pt.id)}`, run: () => spyFlow(pt.id, cell) });
+      options.push({ label: `Arrestar aquí con la patrulla ${L(pt.id)}`, cls: 'danger', run: () => arrestFlow(pt.id, cell) });
     }
   }
 }
 
-function spyFlow(patrol) {
+function spyFlow(patrol, cell) {
   // Primero la alerta de privacidad; el resultado se pide y se muestra una sola vez.
-  openSheet('Antes de espiar', `<div class="banner warn"><strong>${SPY_WARNING}</strong>Solo una persona de tu equipo puede ver si pasó un ladrón por esta casilla. El resultado no se guarda en la pantalla.</div>`, [
+  openSheet(`Antes de espiar la casilla ${cell}`, `<div class="banner warn"><strong>${SPY_WARNING}</strong>Solo una persona de tu equipo puede ver si pasó un ladrón por esta casilla. El resultado no se guarda en la pantalla.</div>`, [
     { label: 'Estoy solo, espiar', run: async () => {
       $sheet.dataset.locked = '1';
-      const r = await act({ type: 'spy', patrol });
+      const r = await act({ type: 'spy', patrol, cell });
       if (!r || !r.spy) { delete $sheet.dataset.locked; closeSheet(); return; }
+      ui.aim = null;
       openSheet(`Casilla ${r.spy.cell}`, r.spy.result
         ? '<div class="banner danger"><strong>Sí, un ladrón pasó por aquí.</strong>No se sabe cuándo ni cuál.</div>'
         : '<div class="banner ok"><strong>No, ningún ladrón ha pasado por aquí.</strong></div>', [
@@ -421,7 +425,7 @@ function arrestFlow(patrol, cell) {
 async function doArrest(patrol, cell) {
   const r = await act({ type: 'arrest', patrol, cell });
   if (!r || !r.arrest) return;
-  ui.arrestPatrol = null;
+  ui.aim = null;
   // el resultado se muestra siempre: la acción de la patrulla cuenta aunque no haya nadie
   openSheet(`Arresto en la casilla ${r.arrest.cell}`, r.arrest.caught.length
     ? `<div class="banner ok"><strong>¡Arrestaste a ${esc(r.arrest.caught.join(', '))}!</strong>La patrulla ${L(patrol)} ya hizo su acción de este turno.</div>`
@@ -457,20 +461,20 @@ function teamControls() {
       <button class="secondary block" id="endMove">Terminar de mover</button></div>`;
   }
   const acted = me.actedThisTurn || [];
-  const arresting = team.patrols.find((p) => p.id === ui.arrestPatrol);
-  return `<div class="card"><h2>Paso 2: acción</h2><p>Cada patrulla hace <b>una</b> acción: espiar su casilla o arrestar en su casilla o en una conectada.</p>
+  const aiming = ui.aim && team.patrols.find((p) => p.id === ui.aim.patrol);
+  return `<div class="card"><h2>Paso 2: acción</h2><p>Cada patrulla hace <b>una</b> acción: espiar o arrestar en su casilla o en una conectada.</p>
     <ul class="list">${team.patrols.map((p) => {
       const done = acted.includes(p.id);
-      const val = ui.arrestPatrol === p.id ? 'arrest' : '';
+      const val = ui.aim?.patrol === p.id ? ui.aim.kind : '';
       return `<li><label for="act-${p.id}">Patrulla ${L(p.id)} · casilla ${p.cell}</label>${done
         ? actionDone(p.id)
         : `<select id="act-${p.id}" data-act="${p.id}">
             <option value="" ${val ? '' : 'selected'}>Elegir acción…</option>
-            <option value="spy">Espiar</option>
+            <option value="spy" ${val === 'spy' ? 'selected' : ''}>Espiar</option>
             <option value="arrest" ${val === 'arrest' ? 'selected' : ''}>Arrestar</option>
           </select>`}</li>`;
     }).join('')}</ul>
-    ${arresting ? `<p class="muted">Toca en el mapa una casilla marcada para arrestar con la patrulla ${L(arresting.id)}.</p>` : ''}</div>`;
+    ${aiming ? `<p class="muted">Toca en el mapa una casilla marcada para ${ui.aim.kind === 'spy' ? 'espiar' : 'arrestar'} con la patrulla ${L(aiming.id)}.</p>` : ''}</div>`;
 }
 
 // resumen de lo que hizo una patrulla en este turno
@@ -483,7 +487,8 @@ function actionDone(patrolId) {
       ? `<span class="pill ok">acción hecha · arrestó a ${esc(names.join(', '))}</span>`
       : `<span class="pill bad">acción hecha · arresto en ${arrest.cell}: no había nadie</span>`;
   }
-  return '<span class="pill ok">acción hecha · espió</span>';
+  const spy = me.spyLog.find((s) => s.turn === state.turn && s.patrol === patrolId);
+  return `<span class="pill ok">acción hecha · espió${spy ? ` la casilla ${spy.cell}` : ''}</span>`;
 }
 
 function teamHistory() {
@@ -566,8 +571,7 @@ function bindPanels() {
   $app.querySelectorAll('[data-patrol]').forEach((b) => b.addEventListener('click', () => { ui.selectedPatrol = Number(b.dataset.patrol); render(); }));
   $app.querySelectorAll('[data-act]').forEach((sel) => sel.addEventListener('change', () => {
     const id = Number(sel.dataset.act);
-    ui.arrestPatrol = sel.value === 'arrest' ? id : null;
-    if (sel.value === 'spy') spyFlow(id);
+    ui.aim = sel.value ? { patrol: id, kind: sel.value } : null;
     render();
   }));
   $app.querySelectorAll('[data-thief]').forEach((b) => b.addEventListener('click', () => { ui.selectedThief = Number(b.dataset.thief); render(); }));

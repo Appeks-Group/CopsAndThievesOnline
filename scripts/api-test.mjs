@@ -44,9 +44,15 @@ assert.equal((await act(teams[0].token, { type: 'spy', patrol: 1 })).status, 400
 // los ladrones no juegan durante el turno de los policías
 assert.equal((await act(T, { type: 'move', thief: 1, cell: 1 })).status, 400);
 await act(teams[0].token, { type: 'end_move' });
+const teamView0 = await st(teams[0].token);
 // los policías no pueden pasar: deben espiar o arrestar
 assert.equal((await act(teams[0].token, { type: 'pass' })).status, 400);
-const spy = await act(teams[0].token, { type: 'spy', patrol: 1 });
+// se espía la casilla de la patrulla o una contigua, no una lejana
+const p1 = teamView0.teams[0].patrols.find((p) => p.id === 1);
+const far = Array.from({ length: h.map.size }, (_, i) => i + 1).find((c) => c !== p1.cell && !h.map.edges.some(([a, b]) => (a === c && b === p1.cell) || (b === c && a === p1.cell)));
+assert.equal((await act(teams[0].token, { type: 'spy', patrol: 1, cell: far })).status, 400, 'espió una casilla lejana');
+const near = h.map.edges.find(([a, b]) => a === p1.cell || b === p1.cell);
+const spy = await act(teams[0].token, { type: 'spy', patrol: 1, cell: near[0] === p1.cell ? near[1] : near[0] });
 assert.equal(typeof spy.data.result.spy.result, 'boolean', 'el que espía recibe el resultado');
 // cada patrulla actúa una vez: la patrulla a ya no puede, la b todavía sí
 assert.equal((await act(teams[0].token, { type: 'arrest', patrol: 1, cell: 1 })).status, 400, 'la patrulla a actuó dos veces');
