@@ -73,12 +73,18 @@ function playOne() {
           if (opts.length && Math.random() < 0.8 && t.step === 'mover') applyAction(g, t.token, { type: 'move_patrol', patrol: p.id, cell: rnd(opts) });
         }
         if (t.step === 'mover') applyAction(g, t.token, { type: 'end_move' });
-        const p = rnd(t.patrols);
-        const r = Math.random();
-        if (r < 0.45) {
-          const res = applyAction(g, t.token, { type: 'spy', patrol: p.id });
-          assert.equal(typeof res.spy.result, 'boolean');
-        } else applyAction(g, t.token, { type: 'arrest', patrol: p.id, cell: rnd([p.cell, ...adj[p.cell]]) });
+        // cada patrulla hace exactamente una acción
+        for (const p of t.patrols) {
+          if (g.phase !== PHASES.POLICE_TURN) break;
+          assert.equal(t.step, 'accion', 'el equipo terminó antes de que actuaran todas sus patrullas');
+          if (Math.random() < 0.45) {
+            const res = applyAction(g, t.token, { type: 'spy', patrol: p.id });
+            assert.equal(typeof res.spy.result, 'boolean');
+          } else applyAction(g, t.token, { type: 'arrest', patrol: p.id, cell: rnd([p.cell, ...adj[p.cell]]) });
+          if (g.phase === PHASES.POLICE_TURN && t.step === 'accion') {
+            assert.throws(() => applyAction(g, t.token, { type: 'spy', patrol: p.id }), GameError, 'una patrulla actuó dos veces');
+          }
+        }
       }
     }
   }

@@ -48,6 +48,11 @@ await act(teams[0].token, { type: 'end_move' });
 assert.equal((await act(teams[0].token, { type: 'pass' })).status, 400);
 const spy = await act(teams[0].token, { type: 'spy', patrol: 1 });
 assert.equal(typeof spy.data.result.spy.result, 'boolean', 'el que espía recibe el resultado');
+// cada patrulla actúa una vez: la patrulla a ya no puede, la b todavía sí
+assert.equal((await act(teams[0].token, { type: 'arrest', patrol: 1, cell: 1 })).status, 400, 'la patrulla a actuó dos veces');
+let tv1 = await st(teams[0].token);
+assert.equal(tv1.me.step, 'accion');
+assert.deepEqual(tv1.me.actedThisTurn, [1]);
 const teamView = await st(teams[0].token);
 assert.equal(teamView.me.spyLog[0].result, undefined, 'el resultado no se guarda en la vista del equipo');
 

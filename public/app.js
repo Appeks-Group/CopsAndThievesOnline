@@ -22,7 +22,7 @@ const params = new URLSearchParams(location.search);
 const session = { gameId: params.get('g'), token: params.get('t') };
 let state = null;
 let pollTimer = null;
-let ui = { selectedPatrol: null, selectedThief: null };
+let ui = { selectedPatrol: null, selectedThief: null, arrestPatrol: null };
 let privacy = false;
 
 // ---------- utilidades ----------
@@ -180,6 +180,7 @@ function setState(data) {
   }
   // si la ficha seleccionada ya no puede actuar, se limpia la selección
   if (state.me.role === 'team' && !(state.me.moveOptions || {})[ui.selectedPatrol]) ui.selectedPatrol = null;
+  if (state.me.role !== 'team' || state.phase !== 'turno_policias' || state.me.step !== 'accion' || !myTeam().patrols.some((p) => p.id === ui.arrestPatrol) || (state.me.actedThisTurn || []).includes(ui.arrestPatrol)) ui.arrestPatrol = null;
   if (state.me.role === 'thieves') {
     const active = state.thieves.filter((t) => !t.captured && (state.phase === 'colocar_ladrones' ? !t.placed : ['mover', 'accion'].includes(t.step)));
     if (!active.some((t) => t.id === ui.selectedThief)) ui.selectedThief = active[0]?.id ?? null;
@@ -262,7 +263,7 @@ function bannerHtml() {
     if (p === 'turno_ladrones') return b('', 'Juegan los ladrones', 'Prepárate para tu turno.');
     if (p === 'turno_policias') {
       if (me.step === 'mover') return b('warn', 'Paso 1 de 2: mover', 'Toca una patrulla y luego una casilla contigua marcada. Cada patrulla se mueve una vez.');
-      if (me.step === 'accion') return b('warn', 'Paso 2 de 2: acción', 'Toca la casilla de una patrulla para espiar o arrestar ahí, o una casilla contigua para arrestar.');
+      if (me.step === 'accion') return b('warn', 'Paso 2 de 2: acción', 'Elige Espiar o Arrestar para cada una de tus patrullas.');
       return b('ok', 'Turno terminado', 'Esperando a los demás equipos.');
     }
   }
@@ -291,6 +292,7 @@ function mapSvg() {
       for (let c = 1; c <= map.size; c++) if (!patrolAt.has(c)) targets.add(c);
     }
     if (state.phase === 'turno_policias' && me.step === 'mover' && ui.selectedPatrol) (me.moveOptions[ui.selectedPatrol] || []).forEach((c) => targets.add(c));
+    if (state.phase === 'turno_policias' && me.step === 'accion' && ui.arrestPatrol) arrestCells(ui.arrestPatrol).forEach((c) => targets.add(c));
   }
   if (me.role === 'thieves') {
     if (state.phase === 'colocar_ladrones' && ui.selectedThief) me.startOptions.forEach((c) => targets.add(c));
@@ -334,7 +336,14 @@ function mapSvg() {
 
 // ---------- toque en una casilla ----------
 
+// casillas donde una patrulla puede arrestar: la suya y las conectadas
+function arrestCells(patrolId) {
+  const pt = myTeam().patrols.find((p) => p.id === patrolId);
+  return pt ? [pt.cell, ...adjacencyOf(state.map)[pt.cell]] : [];
+}
+
 function onCell(cell) {
+  if (state.me.role === 'team' && state.me.step === 'accion' && ui.arrestPatrol && arrestCells(ui.arrestPatrol).includes(cell)) return arrestFlow(ui.arrestPatrol, cell);
   const options = [];
   if (state.me.role === 'team') teamOptions(cell, options);
   if (state.me.role === 'thieves') thievesOptions(cell, options);
@@ -381,8 +390,9 @@ function teamOptions(cell, options) {
     return;
   }
   if (me.step === 'accion') {
-    if (own) options.push({ label: `Espiar aquí con la patrulla ${L(own.id)}`, run: () => spyFlow(own.id) });
-    for (const pt of team.patrols) {
+    const acted = me.actedThisTurn || [];
+    if (own && !acted.includes(own.id)) options.push({ label: `Espiar aquí con la patrulla ${L(own.id)}`, run: () => spyFlow(own.id) });
+    for (const pt of team.patrols.filter((x) => !acted.includes(x.id))) {
       if (pt.cell === cell || adj[pt.cell].has(cell)) options.push({ label: `Arrestar aquí con la patrulla ${L(pt.id)}`, cls: 'danger', run: () => arrestFlow(pt.id, cell) });
     }
   }
@@ -407,6 +417,7 @@ function spyFlow(patrol) {
 async function arrestFlow(patrol, cell) {
   if (!confirm(`¿Arrestar en la casilla ${cell}? Es tu acción del turno.`)) return;
   const r = await act({ type: 'arrest', patrol, cell });
+  if (r && r.arrest) ui.arrestPatrol = null;
   if (r && r.arrest) toast(r.arrest.caught.length ? `¡Capturaste a ${r.arrest.caught.join(', ')}!` : 'No había nadie en esa casilla.', 4000);
 }
 
@@ -438,9 +449,21 @@ function teamControls() {
     }).join('')}</div><p class="muted">Selecciona una patrulla y toca una casilla marcada. No es obligatorio mover todas.</p>
       <button class="secondary block" id="endMove">Terminar de mover</button></div>`;
   }
-  return `<div class="card"><h2>Paso 2: acción</h2><p>Toca la casilla de una de tus patrullas para <b>espiar</b> o <b>arrestar</b> ahí, o una casilla contigua para <b>arrestar</b>. Tienes que elegir una de las dos.</p>
-    <div class="row">${team.patrols.map((p) => `<button class="secondary" data-spy="${p.id}">Espiar con ${L(p.id)} (casilla ${p.cell})</button>`).join('')}</div>
-</div>`;
+  const acted = me.actedThisTurn || [];
+  const arresting = team.patrols.find((p) => p.id === ui.arrestPatrol);
+  return `<div class="card"><h2>Paso 2: acción</h2><p>Cada patrulla hace <b>una</b> acción: espiar su casilla o arrestar en su casilla o en una conectada.</p>
+    <ul class="list">${team.patrols.map((p) => {
+      const done = acted.includes(p.id);
+      const val = ui.arrestPatrol === p.id ? 'arrest' : '';
+      return `<li><label for="act-${p.id}">Patrulla ${L(p.id)} · casilla ${p.cell}</label>${done
+        ? '<span class="pill ok">acción hecha</span>'
+        : `<select id="act-${p.id}" data-act="${p.id}">
+            <option value="" ${val ? '' : 'selected'}>Elegir acción…</option>
+            <option value="spy">Espiar</option>
+            <option value="arrest" ${val === 'arrest' ? 'selected' : ''}>Arrestar</option>
+          </select>`}</li>`;
+    }).join('')}</ul>
+    ${arresting ? `<p class="muted">Toca en el mapa una casilla marcada para arrestar con la patrulla ${L(arresting.id)}.</p>` : ''}</div>`;
 }
 
 function teamHistory() {
@@ -521,7 +544,12 @@ function bindPanels() {
   on('endGame', () => { if (confirm('¿Terminar la partida ahora?')) act({ type: 'end_game' }); });
   on('hideScreen', () => { privacy = true; render(); window.scrollTo(0, 0); });
   $app.querySelectorAll('[data-patrol]').forEach((b) => b.addEventListener('click', () => { ui.selectedPatrol = Number(b.dataset.patrol); render(); }));
-  $app.querySelectorAll('[data-spy]').forEach((b) => b.addEventListener('click', () => spyFlow(Number(b.dataset.spy))));
+  $app.querySelectorAll('[data-act]').forEach((sel) => sel.addEventListener('change', () => {
+    const id = Number(sel.dataset.act);
+    ui.arrestPatrol = sel.value === 'arrest' ? id : null;
+    if (sel.value === 'spy') spyFlow(id);
+    render();
+  }));
   $app.querySelectorAll('[data-thief]').forEach((b) => b.addEventListener('click', () => { ui.selectedThief = Number(b.dataset.thief); render(); }));
   $app.querySelectorAll('[data-take]').forEach((b) => b.addEventListener('click', () => {
     if (confirm('Al tomar el botín se anuncia a todos qué casilla fue robada. ¿Tomarlo?')) act({ type: 'take_loot', thief: Number(b.dataset.take) });
