@@ -12,7 +12,7 @@ App web para jugar Policías y ladrones por equipos desde varios teléfonos. Un 
     1. **Mover:** cada patrulla avanza 1 casilla contigua.
     2. **Acción:** cada patrulla espía o arresta una vez (es obligatorio; no se puede pasar).
     - Antes de espiar sale la alerta *"Asegúrate que nadie más de tu equipo esté cerca"*. El resultado se ve una sola vez y no queda guardado en pantalla.
-  - **Equipo de ladrones** (un solo teléfono): por cada ladrón, **mover** 1 casilla contigua y luego **tomar botín** o **pasar**.
+  - **Equipo de ladrones** (un solo teléfono): por cada ladrón, **mover** 1 casilla contigua y luego **tomar botín** si está en uno, o **pasar** si no.
   - **Ladrón oculto:** no tiene ficha ni pantalla. Juega dentro de su equipo de policías y solo el jefe lo registra.
 - **Aplica las reglas del reglamento:**
   - Patrullas primero, luego sorteo de botines y al final los ladrones.

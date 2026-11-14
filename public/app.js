@@ -270,7 +270,7 @@ function bannerHtml() {
   if (me.role === 'thieves') {
     if (p === 'colocar_patrullas' || p === 'sortear_botines') return b('', 'Espera', 'Los policías se están colocando y luego se sortean los botines.');
     if (p === 'colocar_ladrones') return b('warn', 'Elige dónde empieza cada ladrón', 'Las casillas marcadas son válidas. Los policías no verán dónde empiezan. Después juegan primero los policías.');
-    if (p === 'turno_ladrones') return b('warn', 'Su turno', 'Por cada ladrón: primero mover, luego tomar botín o pasar.');
+    if (p === 'turno_ladrones') return b('warn', 'Su turno', 'Por cada ladrón: primero mover; luego, si está en un botín, tomarlo, y si no, pasar.');
     if (p === 'turno_policias') return b('', 'Turno de los policías', 'Esperen a que terminen.');
   }
   return b('', PHASE_TEXT[p], '');
@@ -486,16 +486,16 @@ function thievesControls() {
     else if (p === 'colocar_ladrones') status = t.placed ? `<span class="pill ok">empieza en ${t.cell}</span>` : '<span class="pill wait">sin colocar</span>';
     else if (t.step === 'mover') status = '<span class="pill wait">1. mover</span>';
     else if (t.step === 'accion') {
-      status = '<span class="pill wait">2. botín o pasar</span>';
       const onLoot = state.loot.some((l) => l.cell === t.cell && !l.stolen);
-      btns = `<div class="row" style="margin-top:6px">${onLoot ? `<button data-take="${t.id}">Tomar botín</button>` : ''}<button class="secondary" data-pass="${t.id}">Pasar</button></div>`;
+      status = `<span class="pill wait">2. ${onLoot ? 'tomar botín' : 'pasar'}</span>`;
+      btns = `<div class="row" style="margin-top:6px">${onLoot ? `<button data-take="${t.id}">Tomar botín</button>` : `<button class="secondary" data-pass="${t.id}">Pasar</button>`}</div>`;
     } else status = '<span class="pill ok">listo</span>';
     const selectable = !t.captured && (p === 'colocar_ladrones' ? !t.placed : t.step === 'mover');
     return `<li style="display:block"><div class="row" style="justify-content:space-between">
       <span><span class="swatch" style="background:${THIEF_COLORS[i % 6]}"></span>${esc(t.name)}${t.cell ? ` · casilla ${t.cell}` : ''}</span>${status}</div>
       ${selectable ? `<button class="${ui.selectedThief === t.id ? '' : 'secondary'}" data-thief="${t.id}" style="margin-top:6px">${ui.selectedThief === t.id ? 'Seleccionado: toca una casilla marcada' : 'Seleccionar'}</button>` : ''}${btns}</li>`;
   }).join('');
-  return `<div class="card"><h2>Tus ladrones</h2><ul class="list">${rows}</ul><p class="muted">Tomar un botín se anuncia a todos (sin decir quién). Puedes pasar para no delatar dónde estás.</p></div>`;
+  return `<div class="card"><h2>Tus ladrones</h2><ul class="list">${rows}</ul><p class="muted">Tomar un botín se anuncia a todos (sin decir quién).</p></div>`;
 }
 
 function hostPanel() {

@@ -64,7 +64,8 @@ function playOne() {
         assert.deepEqual(opts, [...adj[th.cell]].sort((a, b) => a - b));
         applyAction(g, T, { type: 'move', thief: th.id, cell: opts.length ? rnd(opts) : th.cell });
         const onLoot = g.loot.some((l) => l.cell === th.cell && !l.stolen);
-        applyAction(g, T, { type: onLoot && Math.random() < 0.8 ? 'take_loot' : 'pass', thief: th.id });
+        if (onLoot) assert.throws(() => applyAction(g, T, { type: 'pass', thief: th.id }), GameError, 'un ladrón pasó estando en un botín');
+        applyAction(g, T, { type: onLoot ? 'take_loot' : 'pass', thief: th.id });
       }
     } else if (g.phase === PHASES.POLICE_TURN) {
       for (const t of g.teams) {
